@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Cross-compile importstats and generate the npm packages (one per platform plus
-# the main launcher) under npm/. Usage: scripts/build-npm.sh <version>
-# Publishing is separate: platform packages first, then npm/importstats last.
+# Cross-compile importstats for every supported platform into the single npm
+# package at npm/importstats (bin/<os>-<cpu>/importstats[.exe]) and stamp its
+# version. Usage: scripts/build-npm.sh <version>
+# Publishing is separate: cd npm/importstats && npm publish --access public
 set -euo pipefail
 
 VERSION="${1:?usage: scripts/build-npm.sh <version>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-# npm os-cpu  ->  GOOS/GOARCH
+PKG=npm/importstats
+
+# npm os-cpu (process.platform-process.arch)  ->  GOOS GOARCH
 TARGETS=(
   "darwin-arm64 darwin arm64"
   "darwin-x64   darwin amd64"
@@ -18,46 +21,24 @@ TARGETS=(
   "win32-x64    windows amd64"
 )
 
-rm -rf npm/platforms
+rm -rf "$PKG"/bin/*/
 for t in "${TARGETS[@]}"; do
   read -r NPM_TARGET GOOS GOARCH <<<"$t"
-  OS="${NPM_TARGET%-*}"; CPU="${NPM_TARGET#*-}"
   EXE="importstats"; [ "$GOOS" = windows ] && EXE="importstats.exe"
-  DIR="npm/platforms/$NPM_TARGET"
-  mkdir -p "$DIR/bin"
+  mkdir -p "$PKG/bin/$NPM_TARGET"
 
   echo "==> $NPM_TARGET"
   CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-    go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$DIR/bin/$EXE" ./cmd/importstats
-
-  cat > "$DIR/package.json" <<JSON
-{
-  "name": "importstats-$NPM_TARGET",
-  "version": "$VERSION",
-  "description": "importstats binary for $OS-$CPU (installed automatically by the importstats package)",
-  "license": "MIT",
-  "os": ["$OS"],
-  "cpu": ["$CPU"],
-  "files": ["bin"],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Naveen54/import-stats.git"
-  }
-}
-JSON
-  cp LICENSE "$DIR/LICENSE"
-  printf '# importstats-%s\n\nPlatform binary for [importstats](https://www.npmjs.com/package/importstats). Do not install directly.\n' "$NPM_TARGET" > "$DIR/README.md"
+    go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$PKG/bin/$NPM_TARGET/$EXE" ./cmd/importstats
 done
 
-cp LICENSE npm/importstats/LICENSE
+cp LICENSE "$PKG/LICENSE"
 
-# Stamp the version into the main package and its optionalDependencies.
 node -e '
-const fs = require("fs"), p = "npm/importstats/package.json", v = process.argv[1];
+const fs = require("fs"), p = process.argv[1], v = process.argv[2];
 const j = JSON.parse(fs.readFileSync(p, "utf8"));
 j.version = v;
-for (const k of Object.keys(j.optionalDependencies)) j.optionalDependencies[k] = v;
 fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
-' "$VERSION"
+' "$PKG/package.json" "$VERSION"
 
-echo "done: npm/platforms/* and npm/importstats are ready to publish (version $VERSION)"
+echo "done: $PKG is ready to publish (version $VERSION)"

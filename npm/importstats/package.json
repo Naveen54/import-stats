@@ -1,6 +1,6 @@
 {
   "name": "importstats",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Analyse the import graph of a React/JS/TS project: packages, sizes, cycles, orphans, architecture rules, and an interactive dashboard.",
   "license": "MIT",
   "bin": {
@@ -25,13 +25,5 @@
     "react",
     "typescript",
     "cli"
-  ],
-  "optionalDependencies": {
-    "importstats-darwin-arm64": "0.0.0",
-    "importstats-darwin-x64": "0.0.0",
-    "importstats-linux-arm64": "0.0.0",
-    "importstats-linux-x64": "0.0.0",
-    "importstats-win32-arm64": "0.0.0",
-    "importstats-win32-x64": "0.0.0"
-  }
+  ]
 }
