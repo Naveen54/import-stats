@@ -25,5 +25,13 @@
     "react",
     "typescript",
     "cli"
-  ]
+  ],
+  "optionalDependencies": {
+    "@mnkdev/importstats-darwin-arm64": "0.1.0",
+    "@mnkdev/importstats-darwin-x64": "0.1.0",
+    "@mnkdev/importstats-linux-arm64": "0.1.0",
+    "@mnkdev/importstats-linux-x64": "0.1.0",
+    "@mnkdev/importstats-win32-arm64": "0.1.0",
+    "@mnkdev/importstats-win32-x64": "0.1.0"
+  }
 }

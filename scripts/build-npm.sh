@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# Cross-compile importstats for every supported platform into the single npm
-# package at npm/importstats (bin/<os>-<cpu>/importstats[.exe]) and stamp its
-# version. Usage: scripts/build-npm.sh <version>
-# Publishing is separate: cd npm/importstats && npm publish --access public
+# Cross-compile importstats and generate the npm packages under npm/: one
+# @mnkdev/importstats-<os>-<cpu> package per platform (npm/platforms/*) plus the
+# importstats launcher (npm/importstats). Usage: scripts/build-npm.sh <version>
+# Publishing is separate: platform packages first, then npm/importstats last.
 set -euo pipefail
 
 VERSION="${1:?usage: scripts/build-npm.sh <version>}"
+SCOPE="@mnkdev"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-
-PKG=npm/importstats
 
 # npm os-cpu (process.platform-process.arch)  ->  GOOS GOARCH
 TARGETS=(
@@ -21,24 +20,48 @@ TARGETS=(
   "win32-x64    windows amd64"
 )
 
-rm -rf "$PKG"/bin/*/
+rm -rf npm/platforms
 for t in "${TARGETS[@]}"; do
   read -r NPM_TARGET GOOS GOARCH <<<"$t"
+  OS="${NPM_TARGET%-*}"; CPU="${NPM_TARGET#*-}"
   EXE="importstats"; [ "$GOOS" = windows ] && EXE="importstats.exe"
-  mkdir -p "$PKG/bin/$NPM_TARGET"
+  DIR="npm/platforms/$NPM_TARGET"
+  mkdir -p "$DIR/bin"
 
   echo "==> $NPM_TARGET"
   CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-    go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$PKG/bin/$NPM_TARGET/$EXE" ./cmd/importstats
+    go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$DIR/bin/$EXE" ./cmd/importstats
+
+  cat > "$DIR/package.json" <<JSON
+{
+  "name": "$SCOPE/importstats-$NPM_TARGET",
+  "version": "$VERSION",
+  "description": "importstats binary for $OS-$CPU (installed automatically by the importstats package)",
+  "license": "MIT",
+  "os": ["$OS"],
+  "cpu": ["$CPU"],
+  "files": ["bin"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Naveen54/import-stats.git"
+  }
+}
+JSON
+  cp LICENSE "$DIR/LICENSE"
+  printf '# %s/importstats-%s\n\nPlatform binary for [importstats](https://www.npmjs.com/package/importstats). Do not install directly.\n' "$SCOPE" "$NPM_TARGET" > "$DIR/README.md"
 done
 
-cp LICENSE "$PKG/LICENSE"
+cp LICENSE npm/importstats/LICENSE
 
+# Stamp the version and the platform optionalDependencies into the main package.
 node -e '
-const fs = require("fs"), p = process.argv[1], v = process.argv[2];
+const fs = require("fs"), p = "npm/importstats/package.json";
+const [v, scope, ...targets] = process.argv.slice(1);
 const j = JSON.parse(fs.readFileSync(p, "utf8"));
 j.version = v;
+j.optionalDependencies = {};
+for (const t of targets) j.optionalDependencies[scope + "/importstats-" + t] = v;
 fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
-' "$PKG/package.json" "$VERSION"
+' "$VERSION" "$SCOPE" $(for t in "${TARGETS[@]}"; do echo "${t%% *}"; done)
 
-echo "done: $PKG is ready to publish (version $VERSION)"
+echo "done: npm/platforms/* and npm/importstats are ready to publish (version $VERSION)"

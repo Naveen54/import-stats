@@ -1,6 +1,6 @@
 /importstats
 *.test
 /tmp/
-/npm/importstats/bin/*/
+/npm/platforms/
 node_modules/
 /npm/importstats/LICENSE

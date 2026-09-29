@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 "use strict";
 
-// Thin launcher: runs the prebuilt importstats binary for this OS/CPU, which is
-// bundled in this package under bin/<platform>-<arch>/.
+// Thin launcher: finds the prebuilt importstats binary shipped in the matching
+// @mnkdev platform package (installed as an optionalDependency) and runs it.
 
 const { spawnSync } = require("child_process");
-const fs = require("fs");
 const path = require("path");
 
 function binaryPath() {
   if (process.env.IMPORTSTATS_BINARY) return process.env.IMPORTSTATS_BINARY;
 
-  const target = process.platform + "-" + process.arch;
+  const pkg = "@mnkdev/importstats-" + process.platform + "-" + process.arch;
   const exe = process.platform === "win32" ? "importstats.exe" : "importstats";
-  const file = path.join(__dirname, target, exe);
-  if (!fs.existsSync(file)) {
+  try {
+    return path.join(path.dirname(require.resolve(pkg + "/package.json")), "bin", exe);
+  } catch (e) {
     console.error(
-      "importstats: no prebuilt binary for " + target + ".\n" +
-        "Download a binary or build from source: https://github.com/Naveen54/import-stats"
+      "importstats: no prebuilt binary for " + process.platform + "-" + process.arch + " (" + pkg + " is not installed).\n" +
+        "If your platform is supported, reinstall without --no-optional / --omit=optional.\n" +
+        "Otherwise download a binary or build from source: https://github.com/Naveen54/import-stats"
     );
     process.exit(1);
   }
-  return file;
 }
 
 const res = spawnSync(binaryPath(), process.argv.slice(2), { stdio: "inherit" });
