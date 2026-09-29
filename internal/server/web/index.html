@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>importstats — React import analysis</title>
+<link rel="stylesheet" href="app.css" />
+</head>
+<body>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<header>
+  <div class="brand">
+    <span class="logo">◆</span>
+    <div>
+      <h1 id="project-name">importstats</h1>
+      <p id="entry-line" class="muted">loading…</p>
+      <p id="generated-line" class="muted"><span id="generated-abs">—</span><span id="generated-rel"></span></p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <input id="global-search" type="search" placeholder="Filter packages, files, symbols…" />
+    <button id="reanalyze" class="btn primary" title="Re-run the analysis against the current files (R)">↻ Re-analyse</button>
+    <a id="export-json" class="btn" href="/api/report" download="import-stats.json">Download JSON</a>
+  </div>
+</header>
+
+<section class="cards" id="cards"></section>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="packages">Packages</button>
+  <button class="tab" data-tab="symbols">Symbols</button>
+  <button class="tab" data-tab="files">Internal files</button>
+  <button class="tab" data-tab="assets">Styles &amp; assets</button>
+  <button class="tab" data-tab="orphans">Orphans</button>
+  <button class="tab" data-tab="cycles">Cycles</button>
+  <button class="tab" data-tab="deps">Dependency health</button>
+  <button class="tab" data-tab="insights">Insights</button>
+  <button class="tab" data-tab="exports">Unused exports</button>
+  <button class="tab" data-tab="rules">Rules</button>
+  <button class="tab" data-tab="warnings">Warnings</button>
+  <button class="tab" data-tab="graph">Graph</button>
+  <button class="tab" data-tab="tree">Component tree</button>
+</nav>
+
+<main>
+  <section class="panel active" id="panel-packages">
+    <div class="panel-head">
+      <h2>Package imports</h2>
+      <div class="controls">
+        <label><input type="checkbox" id="hide-builtin" /> hide node builtins</label>
+        <select id="pkg-sort">
+          <option value="imports">sort: import count</option>
+          <option value="files">sort: importing files</option>
+          <option value="size">sort: installed size</option>
+          <option value="name">sort: name</option>
+        </select>
+      </div>
+    </div>
+    <table class="data" id="pkg-table">
+      <thead><tr><th>#</th><th>Package</th><th>Imports</th><th>Files</th><th>Share</th><th>Size</th><th>Version</th><th>Type</th><th>Kinds</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-symbols">
+    <div class="panel-head"><h2>Imported symbols per package</h2></div>
+    <div id="symbol-list" class="stack"></div>
+  </section>
+
+  <section class="panel" id="panel-files">
+    <div class="panel-head">
+      <h2>Internal modules</h2>
+      <div class="controls">
+        <select id="file-sort">
+          <option value="imports">sort: times imported</option>
+          <option value="fanIn">sort: distinct importers</option>
+          <option value="fanOut">sort: imports made (fan-out)</option>
+          <option value="file">sort: path</option>
+        </select>
+      </div>
+    </div>
+    <table class="data" id="file-table">
+      <thead><tr><th>#</th><th>File</th><th>Imported</th><th>Importers</th><th>Fan-out</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-assets">
+    <div class="panel-head"><h2>Style &amp; asset imports by extension</h2></div>
+    <table class="data" id="asset-table">
+      <thead><tr><th>Extension</th><th>Imports</th><th>Files</th><th>Type</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-orphans">
+    <div class="panel-head">
+      <h2>Unreachable files under src</h2>
+      <p class="muted">Source files the entry point never reaches — tests, dead code or alternative entries.</p>
+    </div>
+    <ul id="orphan-list" class="plain-list"></ul>
+  </section>
+
+  <section class="panel" id="panel-cycles">
+    <div class="panel-head"><h2>Circular dependencies</h2></div>
+    <div id="cycle-list" class="stack"></div>
+  </section>
+
+  <section class="panel" id="panel-deps">
+    <div class="panel-head"><h2>package.json vs actual usage</h2></div>
+    <div class="two-col">
+      <div>
+        <h3>Declared but never imported <span class="pill" id="unused-count">0</span></h3>
+        <ul id="unused-list" class="plain-list"></ul>
+      </div>
+      <div>
+        <h3>Imported but not declared <span class="pill" id="undeclared-count">0</span></h3>
+        <ul id="undeclared-list" class="plain-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-insights">
+    <div class="panel-head"><h2>Insights</h2></div>
+    <div id="insight-list"></div>
+  </section>
+
+  <section class="panel" id="panel-exports">
+    <div class="panel-head">
+      <h2>Possibly unused exports</h2>
+      <p class="muted note">Exported bindings that no file reachable from the entry imports. Files reached by a namespace import or re-exported through a barrel are excluded, so this list is conservative — still, verify before deleting.</p>
+    </div>
+    <table class="data" id="export-table">
+      <thead><tr><th>File</th><th>Line</th><th>Export</th><th>Kind</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-rules">
+    <div class="panel-head"><h2>Architecture rule violations</h2></div>
+    <table class="data" id="rule-table">
+      <thead><tr><th>Rule</th><th>From</th><th>Line</th><th>Imports</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-warnings">
+    <div class="panel-head"><h2>Unresolved imports &amp; hints</h2></div>
+    <table class="data" id="warn-table">
+      <thead><tr><th>File</th><th>Line</th><th>Specifier</th><th>Type</th><th>Hint</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-graph">
+    <div class="panel-head">
+      <div>
+        <h2>Module graph</h2>
+        <p class="muted">Drag nodes to pin them, drag empty space to pan, wheel to zoom.</p>
+      </div>
+      <div class="controls">
+        <label><input type="checkbox" id="graph-collapse" checked /> collapse directories</label>
+        <button id="graph-reset" class="btn" type="button">Reset layout</button>
+      </div>
+    </div>
+    <div id="graph-wrap">
+      <canvas id="graph-canvas" aria-label="Module import graph"></canvas>
+      <div id="graph-tooltip" role="status"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-tree">
+    <div class="panel-head">
+      <div>
+        <h2>Component tree</h2>
+        <p class="muted note" id="tree-note">How the app flows from the entry down through pages and components. Drag to pan, wheel to zoom, click a node to expand/collapse or open its details.</p>
+      </div>
+      <div class="controls">
+        <div id="tree-search-wrap" class="tree-search-wrap">
+          <input id="tree-search" type="search" placeholder="Search a file or component to root the tree…" autocomplete="off" />
+          <div id="tree-search-results" class="tree-search-results" hidden></div>
+        </div>
+        <label><input type="checkbox" id="tree-components-only" checked /> components only</label>
+        <label><input type="checkbox" id="tree-hide-unrelated" /> hide unrelated</label>
+        <button id="tree-expand-all" class="btn" type="button">Expand all</button>
+        <button id="tree-collapse-all" class="btn" type="button">Collapse all</button>
+        <button id="tree-reset" class="btn" type="button">Reset view</button>
+        <button id="tree-clear-highlight" class="btn ghost" type="button" hidden>Clear highlight</button>
+      </div>
+    </div>
+    <div id="tree-root-chip" class="tree-root-chip" hidden>
+      <span class="tree-root-chip-label">Rooted at</span>
+      <span id="tree-root-chip-file" class="tree-root-chip-file"></span>
+      <button id="tree-root-clear" class="btn ghost" type="button" title="Show the full tree from the entry">✕ show full tree</button>
+    </div>
+    <div id="tree-wrap" class="tree-wrap">
+      <canvas id="tree-canvas" aria-label="Component tree diagram"></canvas>
+      <div id="tree-tooltip" role="status"></div>
+    </div>
+  </section>
+</main>
+
+<aside id="drawer" class="drawer">
+  <div class="drawer-head">
+    <div>
+      <h2 id="drawer-title">—</h2>
+      <p id="drawer-sub" class="muted"></p>
+    </div>
+    <button id="drawer-close" class="btn ghost">✕</button>
+  </div>
+  <div id="drawer-chain" class="chain"></div>
+  <input id="drawer-search" type="search" placeholder="Filter files…" />
+  <div id="drawer-body"></div>
+</aside>
+<div id="scrim" class="scrim"></div>
+
+<script src="app.js"></script>
+<script src="graph.js"></script>
+<script src="tree.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

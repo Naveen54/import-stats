@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>importstats — project comparison</title>
+<link rel="stylesheet" href="compare.css" />
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">◆</span>
+    <div>
+      <h1>Project comparison</h1>
+      <p id="subtitle" class="muted">loading…</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <input id="search" type="search" placeholder="Search packages…" aria-label="Search packages" />
+    <a class="btn" href="/api/comparison" download="importstats-comparison.json">Download JSON</a>
+  </div>
+</header>
+
+<section class="cards" id="cards" aria-label="Comparison summary"></section>
+
+<main>
+  <section id="failures" class="failures" hidden>
+    <h2>Projects with analysis errors</h2>
+    <ul id="failure-list"></ul>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Package matrix</h2>
+        <p id="matrix-note" class="muted">Version drift sorts first by default.</p>
+      </div>
+      <div class="controls" aria-label="Package filters">
+        <label><input id="drift-only" type="checkbox" /> drift only</label>
+        <label><input id="shared-only" type="checkbox" /> shared by all</label>
+        <label><input id="unique-only" type="checkbox" /> unique to one project</label>
+      </div>
+    </div>
+    <div class="table-wrap" id="matrix-wrap">
+      <table class="data matrix" id="matrix-table">
+        <thead id="matrix-head"></thead>
+        <tbody id="matrix-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="compare.js"></script>
+</body>
+</html>
