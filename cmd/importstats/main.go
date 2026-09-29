@@ -23,6 +23,9 @@ import (
 	"importstats/internal/viz"
 )
 
+// version is stamped at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 type aliasFlag map[string]string
 
 func (a aliasFlag) String() string { return "" }
@@ -68,6 +71,7 @@ func main() {
 		watchMode  = flag.Bool("watch", false, "watch source files and re-analyse the dashboard automatically")
 		dotOut     = flag.String("dot", "", "write the module graph in Graphviz DOT format")
 		mermaidOut = flag.String("mermaid", "", "write the module graph as a Mermaid flowchart")
+		showVer    = flag.Bool("version", false, "print the version and exit")
 		collapse   = flag.Bool("collapse", false, "collapse the graph export to one node per directory")
 		compareIn  = listFlag{}
 		aliases    = aliasFlag{}
@@ -99,6 +103,11 @@ Flags:
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *showVer {
+		fmt.Println("importstats", version)
+		return
+	}
 
 	// Go's flag package stops parsing at the first positional argument, so a
 	// path placed before the flags silently swallows them. Catch that instead

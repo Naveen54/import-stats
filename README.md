@@ -6,6 +6,16 @@ Handles modern ESM (`import`, `export … from`, dynamic `import()`) and legacy 
 
 Zero Go dependencies, zero JavaScript dependencies, no build step, no network access, and no build-config parsing.
 
+## Quick start
+
+```bash
+npx importstats ./my-react-app
+```
+
+Needs Node 18+; the prebuilt binary for your OS/CPU is fetched automatically
+(macOS, Linux, Windows; x64 and arm64). Flags go before the path; add
+`-no-open` in headless/CI environments.
+
 ## Install
 
 ```bash
