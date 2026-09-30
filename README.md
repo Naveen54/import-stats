@@ -26,8 +26,8 @@ mv importstats /usr/local/bin/
 ```
 
 Prebuilt binaries for Windows (amd64/arm64) and macOS (a universal Intel +
-Apple Silicon binary) are attached to the rolling **[latest release](../../releases/tag/latest)**,
-built automatically on every push to `main` by `.github/workflows/release.yml`.
+Apple Silicon binary) are attached to each [GitHub release](../../releases),
+created by `.github/workflows/publish.yml` when a version tag is pushed.
 
 ### Releasing to npm
 
