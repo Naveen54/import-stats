@@ -1,0 +1,88 @@
+name: Publish
+
+# Pushing a tag like v1.2.3 builds importstats for every platform and publishes
+# the @mnkdev/importstats-<os>-<cpu> packages plus the importstats launcher to
+# npm at version 1.2.3 as *staged* releases (a maintainer approves each with
+# 2FA via `npm stage approve <id>` or npmjs.com), then creates a GitHub release for the tag.
+# Authenticates to npm via trusted publishing (OIDC); no token secret needed.
+# Each package must list this repo + publish.yml as a stage-only trusted publisher
+# with Environment set to npm-publish (a GitHub environment with required reviewers).
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  GO_VERSION: "1.23"
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+  publish:
+    name: Publish to npm
+    needs: test
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Derive version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag '${GITHUB_REF_NAME}' is not a semver tag (vX.Y.Z[-prerelease])" >&2
+            exit 1
+          fi
+          DIST_TAG=latest
+          [[ "$VERSION" == *-* ]] && DIST_TAG=next
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "DIST_TAG=$DIST_TAG" >> "$GITHUB_ENV"
+
+      - name: Build npm packages
+        run: scripts/build-npm.sh "$VERSION"
+
+      - name: Stage (platform packages first, launcher last)
+        run: |
+          npm install -g npm@latest   # staged publishing needs npm >= 11.15.0
+          for dir in npm/platforms/* npm/importstats; do
+            name=$(node -p "require('./$dir/package.json').name")
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "==> $name@$VERSION already published, skipping"
+              continue
+            fi
+            echo "==> staging $name@$VERSION (tag: $DIST_TAG)"
+            (cd "$dir" && npm stage publish --access public --provenance --tag "$DIST_TAG")
+          done
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

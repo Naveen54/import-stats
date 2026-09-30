@@ -29,6 +29,22 @@ Prebuilt binaries for Windows (amd64/arm64) and macOS (a universal Intel +
 Apple Silicon binary) are attached to the rolling **[latest release](../../releases/tag/latest)**,
 built automatically on every push to `main` by `.github/workflows/release.yml`.
 
+### Releasing to npm
+
+Pushing a version tag publishes the npm packages (`importstats` and the
+`@mnkdev/importstats-*` platform packages) at that version via
+`.github/workflows/publish.yml`:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Pre-release tags (e.g. `v0.2.0-rc.1`) publish under the `next` dist-tag. Publishing
+uses npm trusted publishing (OIDC): each package has this repo and `publish.yml`
+configured as its trusted publisher on npmjs.com, so no token secret is needed. The workflow only *stages* each package; approve the
+7 staged versions (platform packages first, `importstats` last) on npmjs.com under
+**Staged Packages**, or with `npm stage list` / `npm stage approve <stage-id>`.
+
 ## Usage
 
 ```bash
